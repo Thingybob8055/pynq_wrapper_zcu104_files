@@ -1,0 +1,9 @@
+orig_index,new_index,event_name
+3,0,Core__BRANCH
+4,1,Core__JAL
+7,2,Core__LOAD
+8,3,Core__STORE
+32,4,L1I__LD
+48,5,L1D__LD
+64,6,TGC__WRITE
+66,7,TGC__READ
