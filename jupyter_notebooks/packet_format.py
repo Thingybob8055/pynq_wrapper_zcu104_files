@@ -119,7 +119,7 @@ class Packet_Format:
         return {name:metrics_dict[name] for name in perf_counters}
 
     # metrics that will be used for anomaly detection aside of HPCs
-    metrics_to_use_aside_hpcs = ['pc', 'clk_counter', 'A0', 'A1', 'A2']
+    metrics_to_use_aside_hpcs = ['pc', 'clk_counter', 'A0', 'A1', 'A2', 'A3']
     @staticmethod 
     def get_vector_for_anomaly_detection_from_metrics_dict(metrics_dict):
         ''' Returns a list of items that are used for anomaly detection from dataframe metrics '''
@@ -136,6 +136,18 @@ class Packet_Format:
     def get_anomaly_detection_features_names():
         ''' Returns a list of items that are used for anomaly detection from dataframe metrics '''
         return __class__.metrics_to_use_aside_hpcs + perf_counters
+
+    @staticmethod
+    def get_anomaly_detection_features_indices(metrics_names):
+        ''' Returns a list of indices that are used for given anomaly detection from dataframe metrics.
+        Helpful for calculating similarity based on specific metrics. '''
+        indices = []
+        for m in __class__.get_anomaly_detection_features_names():
+            if m in metrics_names:
+                indices.append(metrics_names.index(m))
+            else:
+                print(f"WARNING: {m} not found in metrics_names ({metrics_names})")
+        return indices
 
 
 class DataFrame_Columns_Order:

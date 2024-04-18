@@ -17,13 +17,18 @@ import glob
 import pickle
 from copy import deepcopy
 
+from packet_format import Packet_Format
+
 class Anomaly_Detection:
     ''' Relative/mean difference based detection.  '''
     def __init__(self, datasets_dir="anomaly_detection_datasets"):
         # self.n_features = None
         self.datasets_dir = datasets_dir
+        # special columns indices purpose is to split dataset into multiple subdatasets
+        # each subdataset is associated with a particular value of the special column
+        # (using this we can have separate dataset for each program counter value)
         self.n_special_columns = 0
-        self.n_features = None
+        # self.n_features = None
         self.special_columns_indices = []
         self.dataset_lock = Lock()
         self.dataset = {'default': None}
@@ -34,6 +39,9 @@ class Anomaly_Detection:
         self.on_has_unsaved_changes = lambda state: None
         self.on_model_name_change = lambda name: None
         self.on_max_interval_change = lambda interval: None
+        self.on_feature_enabled_change = lambda feature_name, state: None
+
+        self.used_features = {f:True for f in Packet_Format.data_pkt.keys()}
 
         # max interval is a time interval between receiving two vectors 
         # during training. It can be used during testing/monitoring to 
@@ -49,6 +57,28 @@ class Anomaly_Detection:
             return val2 / val1
         # self.calculate_similarities = np.vectorize(lambda x, y: x/y if x < y else y/x)
         self.calculate_similarities = np.vectorize(get_sim)
+
+    def get_used_features(self):
+        return self.used_features
+    
+    def is_model_empty(self):
+        return self.get_dataset_size() == 0
+
+    def set_feature_enabled(self, feature_name, is_enabled):
+        ''' Enabling/disabling features must be disabled by the UI when model is not empty. '''
+        if not self.is_model_empty():
+            error_msg = 'AnomalyDetection.set_feature_enabled: model is not empty (features cannot be changed)'
+            return error_msg
+        if feature_name not in self.used_features:
+            error_msg = f'AnomalyDetection.set_feature_enabled: feature "{feature_name}" not found'
+            return error_msg
+        if self.used_features[feature_name] == is_enabled:
+            error_msg = f'AnomalyDetection.set_feature_enabled: feature "{feature_name}" already has is_enabled equal to {is_enabled}'
+            return error_msg
+        self.used_features[feature_name] = is_enabled
+        self.on_feature_enabled_change(feature_name, is_enabled)
+        # self.set_has_unsaved_changes(True)
+        return ''
     
     def set_special_columns_indices(self, special_columns_indices):
         self.special_columns_indices = special_columns_indices
@@ -57,7 +87,7 @@ class Anomaly_Detection:
     def init_dataset(self, n_features, key='default'):
         self.dataset[key] = np.empty((0, n_features))
         self.vectors_hashes[key] = set()
-        self.n_features = n_features
+        # self.n_features = n_features
         # self.n_features_columns = n_features - self.n_special_columns
 
     def reset_dataset(self):
@@ -72,9 +102,10 @@ class Anomaly_Detection:
 
             # self.dataset = None
             # self.vectors_hashes = set()
-            for key in keys_list:
-                self.dataset[key] = None
-                self.vectors_hashes[key] = set()
+
+            # for key in keys_list:
+            #     self.dataset[key] = None
+            #     self.vectors_hashes[key] = set()
 
             self.set_max_interval(0.0)
         self.set_has_unsaved_changes(False)
@@ -314,6 +345,12 @@ class Anomaly_Detection:
             print('AnomalyDetection.set_on_max_interval_change_callback: callback is not callable')
             return
         self.on_max_interval_change = callback
+    
+    def set_on_feature_enabled_change_callback(self, callback):
+        if not callable(callback):
+            print('AnomalyDetection.set_on_feature_enabled_change_callback: callback is not callable')
+            return
+        self.on_feature_enabled_change = callback
 
 
     
